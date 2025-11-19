@@ -8,6 +8,7 @@ import { GuestsManagement } from "@/components/management/GuestsManagement";
 import { RoomsManagement } from "@/components/management/RoomsManagement";
 import { ReservationsManagement } from "@/components/management/ReservationsManagement";
 import { ServicesManagement } from "@/components/management/ServicesManagement";
+import { PaymentsManagement } from "@/components/management/PaymentsManagement";
 
 const Gerenciamento = () => {
   return (
@@ -37,6 +38,7 @@ const Gerenciamento = () => {
               <TabsTrigger value="rooms">Quartos</TabsTrigger>
               <TabsTrigger value="reservations">Reservas</TabsTrigger>
               <TabsTrigger value="services">Serviços</TabsTrigger>
+              <TabsTrigger value="payments">Pagamentos</TabsTrigger>
             </TabsList>
 
             <TabsContent value="guests">
@@ -55,6 +57,9 @@ const Gerenciamento = () => {
               <ServicesManagement />
             </TabsContent>
 
+            <TabsContent value="payments">
+              <PaymentsManagement />
+            </TabsContent>
           </Tabs>
         </Card>
       </div>

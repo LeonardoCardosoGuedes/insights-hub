@@ -1,156 +1,203 @@
+// src/components/dashboard/ViewsSection.tsx
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import React, { useState } from "react";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+
+const API_BASE_URL = "http://localhost:3004/api";
 
 export const ViewsSection = () => {
-  const { data: reservasCompletas, isLoading: loadingReservas } = useQuery({
-    queryKey: ["vw-reservas-completas"],
+  const [search, setSearch] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["views-section"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vw_reservas_completas")
-        .select("*")
-        .limit(10);
-      if (error) throw error;
-      return data;
+      const [reservasRes, quartosRes, pessoasRes, pessoasHospRes] =
+        await Promise.all([
+          fetch(`${API_BASE_URL}/reservas`),
+          fetch(`${API_BASE_URL}/quartos`),
+          fetch(`${API_BASE_URL}/pessoas`),
+          fetch(`${API_BASE_URL}/pessoas&hospedes`),
+        ]);
+
+      return {
+        reservas: await reservasRes.json(),
+        quartos: await quartosRes.json(),
+        pessoas: await pessoasRes.json(),
+        pessoasHospedes: await pessoasHospRes.json(),
+      };
     },
   });
 
-  const { data: relatorioFinanceiro, isLoading: loadingFinanceiro } = useQuery({
-    queryKey: ["vw-relatorio-financeiro"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vw_relatorio_financeiro")
-        .select("*")
-        .limit(10);
-      if (error) throw error;
-      return data;
-    },
-  });
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-6 w-40" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-64" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  const searchNormalized = search.toLowerCase().trim();
+
+  const pessoasFiltradas =
+    data?.pessoas.filter((p: any) => {
+      if (!searchNormalized) return true;
+      return (
+        p.nomeCompleto.toLowerCase().includes(searchNormalized) ||
+        p.cpf.toLowerCase().includes(searchNormalized)
+      );
+    }) || [];
+
+  const hospedesFiltrados =
+    data?.pessoasHospedes
+      .filter((p: any) => p.status === "É hóspede")
+      .filter((p: any) => {
+        if (!searchNormalized) return true;
+        return (
+          p.nome_completo.toLowerCase().includes(searchNormalized) ||
+          p.cpf.toLowerCase().includes(searchNormalized)
+        );
+      }) || [];
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-foreground">Consultas e Views do Banco de Dados</h2>
-      
-      {/* View 1: Reservas Completas */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* RESERVAS */}
       <Card>
         <CardHeader>
-          <CardTitle>Reservas Completas</CardTitle>
-          <CardDescription>
-            Visualização completa de reservas com dados de hóspedes, pessoas e quartos
-          </CardDescription>
+          <CardTitle>Últimas Reservas</CardTitle>
         </CardHeader>
-        <CardContent>
-          {loadingReservas ? (
-            <Skeleton className="h-64" />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Hóspede</TableHead>
-                    <TableHead>CPF</TableHead>
-                    <TableHead>Quarto</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Check-in</TableHead>
-                    <TableHead>Check-out</TableHead>
-                    <TableHead>Dias</TableHead>
-                    <TableHead>Hóspedes</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {reservasCompletas?.map((reserva) => (
-                    <TableRow key={reserva.id_reserva}>
-                      <TableCell className="font-medium">#{reserva.id_reserva}</TableCell>
-                      <TableCell>{reserva.nome_hospede}</TableCell>
-                      <TableCell className="text-xs">{reserva.cpf}</TableCell>
-                      <TableCell>{reserva.numero_quarto}</TableCell>
-                      <TableCell>{reserva.tipo_quarto}</TableCell>
-                      <TableCell>{new Date(reserva.data_entrada).toLocaleDateString("pt-BR")}</TableCell>
-                      <TableCell>{new Date(reserva.data_saida).toLocaleDateString("pt-BR")}</TableCell>
-                      <TableCell>{reserva.dias_hospedagem}</TableCell>
-                      <TableCell>{reserva.quantidade_hospedes}</TableCell>
-                      <TableCell className="font-semibold">
-                        R$ {Number(reserva.valor_total).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={reserva.status_quarto === "Disponível" ? "default" : "secondary"}>
-                          {reserva.status_quarto}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+
+        <CardContent className="space-y-2 max-h-80 overflow-auto">
+          {data?.reservas.map((r: any) => {
+            // Formatando entrada e saída para dd/mm/aaaa
+            const entrada = new Date(r.data_entrada.join("-")).toLocaleDateString("pt-BR");
+            const saida = new Date(r.data_saida.join("-")).toLocaleDateString("pt-BR");
+
+            return (
+              <div
+                key={r.id}
+                className="border p-2 rounded-md flex justify-between"
+              >
+                <div>
+                  <p className="text-sm font-bold">
+                    Quarto {r.numero_quarto} — Hóspede #{r.id_hospede}
+                  </p>
+
+                  <p className="text-xs">Entrada: {entrada}</p>
+                  <p className="text-xs">Saída: {saida}</p>
+                </div>
+
+                <p className="font-semibold">
+                  R$ {Number(r.valor_total).toLocaleString("pt-BR")}
+                </p>
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 
-      {/* View 2: Relatório Financeiro */}
+
+      {/* QUARTOS */}
       <Card>
         <CardHeader>
-          <CardTitle>Relatório Financeiro</CardTitle>
-          <CardDescription>
-            Análise financeira de reservas incluindo serviços adicionais e informações de pagamento
-          </CardDescription>
+          <CardTitle>Quartos</CardTitle>
         </CardHeader>
-        <CardContent>
-          {loadingFinanceiro ? (
-            <Skeleton className="h-64" />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Hóspede</TableHead>
-                    <TableHead>Quarto</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Check-in</TableHead>
-                    <TableHead>Check-out</TableHead>
-                    <TableHead>Valor Reserva</TableHead>
-                    <TableHead>Serviços</TableHead>
-                    <TableHead>Total Geral</TableHead>
-                    <TableHead>Pagamento</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {relatorioFinanceiro?.map((relatorio) => (
-                    <TableRow key={relatorio.id_reserva}>
-                      <TableCell className="font-medium">#{relatorio.id_reserva}</TableCell>
-                      <TableCell>{relatorio.nome_hospede}</TableCell>
-                      <TableCell>{relatorio.numero_quarto}</TableCell>
-                      <TableCell>{relatorio.tipo_quarto}</TableCell>
-                      <TableCell>{new Date(relatorio.data_entrada).toLocaleDateString("pt-BR")}</TableCell>
-                      <TableCell>{new Date(relatorio.data_saida).toLocaleDateString("pt-BR")}</TableCell>
-                      <TableCell>
-                        R$ {Number(relatorio.valor_reserva).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-accent font-medium">
-                        R$ {Number(relatorio.total_servicos_adicionais).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="font-bold">
-                        R$ {Number(relatorio.valor_total_geral).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>{relatorio.tipo_pagamento || "N/A"}</TableCell>
-                      <TableCell>
-                        <Badge variant={relatorio.status_pagamento === "Pago" ? "default" : "destructive"}>
-                          {relatorio.status_pagamento || "Pendente"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+        <CardContent className="space-y-2 max-h-80 overflow-auto">
+          {data?.quartos.map((q: any) => (
+            <div
+              key={q.numero}
+              className="border p-2 rounded-md flex justify-between"
+            >
+              <div>
+                <p className="text-sm font-bold">
+                  Quarto {q.numero} — {q.tipo}
+                </p>
+                <p className="text-xs">Capacidade: {q.capacidade}</p>
+              </div>
+              <p className="font-semibold">
+                {q.statusAtual === "Livre" ? "🟢 Livre" : "🔴 Ocupado"}
+              </p>
             </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* BARRA DE PESQUISA (ocupa as 2 colunas) */}
+      <div className="lg:col-span-2 flex flex-col gap-2 mt-2">
+        <label className="text-sm font-medium text-muted-foreground">
+          Buscar pessoa (nome ou CPF)
+        </label>
+        <Input
+          placeholder="Digite o nome ou CPF..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
+      {/* PESSOAS CADASTRADAS */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Pessoas Cadastradas</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-80 overflow-auto">
+          {pessoasFiltradas.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma pessoa encontrada.
+            </p>
           )}
+
+          {pessoasFiltradas.map((p: any) => (
+            <div key={p.cpf} className="border p-2 rounded-md">
+              <p className="font-bold text-sm">{p.nomeCompleto}</p>
+              <p className="text-xs">
+                {p.endereco.cidade} — {p.endereco.bairro}
+              </p>
+              <p className="text-xs text-muted-foreground">{p.cpf}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* HÓSPEDES */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Hóspedes</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-80 overflow-auto">
+          {hospedesFiltrados.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Nenhum hóspede encontrado.
+            </p>
+          )}
+
+          {hospedesFiltrados.map((p: any) => (
+            <div
+              key={p.cpf}
+              className="border p-2 rounded-md flex justify-between"
+            >
+              <div>
+                <p className="font-bold text-sm">{p.nome_completo}</p>
+                <p className="text-xs">{p.cpf}</p>
+              </div>
+              <p className="font-semibold text-green-600">É hóspede</p>
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>

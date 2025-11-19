@@ -12,9 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Trash2, Edit, Calendar } from "lucide-react";
 
-const API_BASE_URL = "http://localhost:3004/api"; // API JAVA
-
-/* ----------------------- SCHEMA ----------------------- */
 const reservationSchema = z.object({
   fk_id_hospede: z.number().min(1, "Selecione um hóspede"),
   fk_quarto_numero: z.number().min(1, "Selecione um quarto"),
@@ -45,14 +42,11 @@ export const ReservationsManagement = () => {
     },
   });
 
-  /* ----------------------- USE EFFECT ----------------------- */
   useEffect(() => {
     fetchReservations();
     fetchGuests();
-    fetchRooms(); // agora carrega da API Java
   }, []);
 
-  /* ----------------------- BUSCA RESERVAS ----------------------- */
   const fetchReservations = async () => {
     const { data, error } = await supabase
       .from("reserva")
@@ -70,7 +64,6 @@ export const ReservationsManagement = () => {
     }
   };
 
-  /* ----------------------- BUSCA HÓSPEDES ----------------------- */
   const fetchGuests = async () => {
     const { data, error } = await supabase
       .from("hospede")
@@ -83,32 +76,11 @@ export const ReservationsManagement = () => {
     }
   };
 
-  /* ----------------------- BUSCA QUARTOS DA API JAVA ----------------------- */
   const fetchRooms = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/quartos`);
-      if (!res.ok) throw new Error("Erro ao carregar quartos");
 
-      const data = await res.json();
-
-      const normalizados = (data || []).map((room: any) => ({
-        ...room,
-        valorDiaria: Number(
-          room.valorDiaria ?? room.valor_diaria ?? room.valor ?? 0
-        ),
-      }));
-
-      setRooms(normalizados);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao carregar quartos",
-        description: error.message,
-        variant: "destructive",
-      });
     }
   };
 
-  /* ----------------------- SUBMIT ----------------------- */
   const onSubmit = async (data: ReservationFormData) => {
     try {
       if (editingId) {
@@ -128,16 +100,12 @@ export const ReservationsManagement = () => {
       } else {
         const { error } = await supabase
           .from("reserva")
-          .insert([
-            {
               fk_id_hospede: data.fk_id_hospede,
               fk_quarto_numero: data.fk_quarto_numero,
               quantidade_hospedes: data.quantidade_hospedes,
               valor_total: data.valor_total,
               data_entrada: new Date(data.data_entrada).toISOString(),
               data_saida: new Date(data.data_saida).toISOString(),
-            },
-          ]);
 
         if (error) throw error;
         toast({ title: "Sucesso", description: "Reserva cadastrada com sucesso!" });
@@ -151,20 +119,16 @@ export const ReservationsManagement = () => {
     }
   };
 
-  /* ----------------------- EDIT ----------------------- */
   const handleEdit = (reservation: any) => {
     setEditingId(reservation.id_reserva);
     form.reset({
       fk_id_hospede: reservation.fk_id_hospede,
       fk_quarto_numero: reservation.fk_quarto_numero,
-      data_entrada: reservation.data_entrada?.split("T")[0],
-      data_saida: reservation.data_saida?.split("T")[0],
       quantidade_hospedes: reservation.quantidade_hospedes,
       valor_total: reservation.valor_total,
     });
   };
 
-  /* ----------------------- DELETE ----------------------- */
   const handleDelete = async (id: number) => {
     if (!confirm("Tem certeza que deseja excluir esta reserva?")) return;
 
@@ -178,7 +142,6 @@ export const ReservationsManagement = () => {
     }
   };
 
-  /* ----------------------- RENDER ----------------------- */
   return (
     <div className="space-y-6">
       <Card>
@@ -191,14 +154,10 @@ export const ReservationsManagement = () => {
             Registre uma nova reserva de quarto
           </CardDescription>
         </CardHeader>
-
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-                {/* HÓSPEDE */}
                 <FormField
                   control={form.control}
                   name="fk_id_hospede"
@@ -230,7 +189,6 @@ export const ReservationsManagement = () => {
                   )}
                 />
 
-                {/* QUARTO */}
                 <FormField
                   control={form.control}
                   name="fk_quarto_numero"
@@ -252,7 +210,6 @@ export const ReservationsManagement = () => {
                               key={room.numero}
                               value={room.numero.toString()}
                             >
-                              Quarto {room.numero} - {room.tipo} (R$ {room.valorDiaria})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -262,7 +219,6 @@ export const ReservationsManagement = () => {
                   )}
                 />
 
-                {/* QUANTIDADE */}
                 <FormField
                   control={form.control}
                   name="quantidade_hospedes"
@@ -281,7 +237,6 @@ export const ReservationsManagement = () => {
                   )}
                 />
 
-                {/* DATA ENTRADA */}
                 <FormField
                   control={form.control}
                   name="data_entrada"
@@ -296,7 +251,6 @@ export const ReservationsManagement = () => {
                   )}
                 />
 
-                {/* DATA SAÍDA */}
                 <FormField
                   control={form.control}
                   name="data_saida"
@@ -311,7 +265,6 @@ export const ReservationsManagement = () => {
                   )}
                 />
 
-                {/* VALOR TOTAL */}
                 <FormField
                   control={form.control}
                   name="valor_total"
@@ -330,14 +283,12 @@ export const ReservationsManagement = () => {
                     </FormItem>
                   )}
                 />
-
               </div>
 
               <div className="flex gap-2">
                 <Button type="submit">
                   {editingId ? "Atualizar" : "Cadastrar"}
                 </Button>
-
                 {editingId && (
                   <Button
                     type="button"
@@ -351,19 +302,16 @@ export const ReservationsManagement = () => {
                   </Button>
                 )}
               </div>
-
             </form>
           </Form>
         </CardContent>
       </Card>
 
-      {/* LISTA DE RESERVAS */}
       <Card>
         <CardHeader>
           <CardTitle>Reservas Cadastradas</CardTitle>
           <CardDescription>Lista de todas as reservas</CardDescription>
         </CardHeader>
-
         <CardContent>
           <Table>
             <TableHeader>
@@ -378,7 +326,6 @@ export const ReservationsManagement = () => {
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
-
             <TableBody>
               {reservations.map((reservation) => (
                 <TableRow key={reservation.id_reserva}>
@@ -409,7 +356,6 @@ export const ReservationsManagement = () => {
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-
                       <Button
                         variant="ghost"
                         size="icon"
@@ -422,7 +368,6 @@ export const ReservationsManagement = () => {
                 </TableRow>
               ))}
             </TableBody>
-
           </Table>
         </CardContent>
       </Card>
